@@ -4,33 +4,57 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "server": "cd server && node server.js",
+    "dev:full": "concurrently \"npm run dev\" \"npm run server\"",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^22.0.1",
     "@supabase/supabase-js": "^2.95.3",
+    "axios": "^1.13.5",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "framer-motion": "^12.34.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.564.0",
     "next": "15.5.12",
-    "openai": "^6.21.0",
+    "openai": "^6.22.0",
     "radix-ui": "^1.4.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.4.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.33",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.24",
+    "concurrently": "^9.2.1",
     "postcss": "^8.5.6",
     "shadcn": "^3.8.4",
     "tailwindcss": "^3.4.19",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5",
     "vercel": "^50.17.1"
-  }
+  },
+  "description": "CodeGuardian AI 🚀\r [\r [\r [\r [",
+  "main": "postcss.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rish0000-dot/CODEGUARDIA-PROJECT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rish0000-dot/CODEGUARDIA-PROJECT/issues"
+  },
+  "homepage": "https://github.com/rish0000-dot/CODEGUARDIA-PROJECT#readme"
 }
