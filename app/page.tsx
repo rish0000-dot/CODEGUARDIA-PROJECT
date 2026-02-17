@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { Loader2, LogOut, Settings, User, ChevronDown, Shield, CreditCard, Users, LogIn } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from './context/AuthContext'
 import Sidebar from './components/Sidebar'
 import PRAutomation from './components/PRAutomation'
@@ -29,6 +30,15 @@ interface AIReviewResult {
   }>;
   improvements: string[];
   businessImpact?: string;
+}
+
+// Assuming this is the User interface the instruction refers to
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  avatar?: string;
+  mfaEnabled?: boolean;
 }
 
 type TabType = 'security' | 'review' | 'architecture';
@@ -69,6 +79,7 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const router = useRouter();
 
   const { user, logout, loading: authLoading } = useAuth();
 
@@ -338,6 +349,7 @@ export default function Home() {
               </div>
 
               {[
+                { icon: <Shield size={18} />, label: user.mfaEnabled ? 'MFA Enabled' : 'Enable MFA', onClick: () => router.push('/mfa-setup'), color: user.mfaEnabled ? '#10b981' : 'rgba(255,255,255,0.8)' },
                 { icon: <Settings size={18} />, label: 'Organization Settings', onClick: () => setCurrentView('rules') },
                 { icon: <Users size={18} />, label: 'Team Members', onClick: () => setCurrentView('team') },
                 { icon: <CreditCard size={18} />, label: 'Billing & Plan', onClick: () => { } },
@@ -352,7 +364,7 @@ export default function Home() {
                     gap: '0.75rem',
                     padding: '0.75rem 1rem',
                     borderRadius: '12px',
-                    color: 'rgba(255,255,255,0.8)',
+                    color: item.color || 'rgba(255,255,255,0.8)',
                     fontSize: '0.9rem',
                     fontWeight: '500',
                     border: 'none',

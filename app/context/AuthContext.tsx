@@ -11,14 +11,18 @@ interface User {
     name: string;
     role: string;
     avatar: string;
+    mfaEnabled?: boolean;
 }
 
 interface AuthContextType {
     user: User | null;
     token: string | null;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<{ requiresMFA?: boolean; mfaToken?: string } | void>;
+    verifyMFA: (mfaToken: string, code: string) => Promise<void>;
     logout: () => void;
     loading: boolean;
+    requiresMFA: boolean;
+    mfaToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +31,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [requiresMFA, setRequiresMFA] = useState(false);
+    const [mfaToken, setMfaToken] = useState<string | null>(null);
     const router = useRouter();
     const pathname = usePathname();
 
@@ -47,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const publicPaths = ['/login'];
             const isPublicPath = publicPaths.includes(pathname);
 
-            if (!token && !isPublicPath) {
+            if (!token && !isPublicPath && !requiresMFA) {
                 router.push('/login');
             } else if (token && isPublicPath) {
                 router.push('/');
@@ -60,6 +66,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
 
             if (response.data.success) {
+                if (response.data.requiresMFA) {
+                    setRequiresMFA(true);
+                    setMfaToken(response.data.mfaToken);
+                    toast.info('Verification Required: Please enter your 6-digit MFA code.');
+                    router.push('/mfa-verify');
+                    return { requiresMFA: true, mfaToken: response.data.mfaToken };
+                }
+
                 const { token, user } = response.data;
                 setToken(token);
                 setUser(user);
@@ -80,6 +94,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const verifyMFA = async (mfaToken: string, code: string) => {
+        try {
+            const response = await axios.post('http://localhost:5000/api/auth/mfa/verify-login', { mfaToken, code });
+
+            if (response.data.success) {
+                const { token, user } = response.data;
+                setToken(token);
+                setUser(user);
+                setRequiresMFA(false);
+                setMfaToken(null);
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                toast.success(`Access Granted. Welcome, ${user.name}!`);
+                router.push('/');
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'MFA verification failed');
+            throw error;
+        }
+    };
+
     const logout = () => {
         setToken(null);
         setUser(null);
@@ -90,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, token, login, verifyMFA, logout, loading, requiresMFA, mfaToken }}>
             {children}
         </AuthContext.Provider>
     );
