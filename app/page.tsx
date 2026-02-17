@@ -9,6 +9,8 @@ import TeamVelocity from './components/TeamVelocity'
 import ROIAnalytics from './components/ROIAnalytics'
 import CustomRules from './components/CustomRules'
 import Reports from './components/Reports'
+import RBACManagement from './components/RBACManagement'
+import AuditLogs from './components/AuditLogs'
 
 interface AIReviewResult {
   overallScore: number;
@@ -448,7 +450,7 @@ export default function Home() {
           }} />
 
           {/* IMPORTED SIDEBAR */}
-          <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+          <Sidebar currentView={currentView} setCurrentView={setCurrentView} user={user} />
 
           {/* MAIN CONTENT AREA */}
           <div style={{
@@ -493,10 +495,10 @@ export default function Home() {
                   flexWrap: 'wrap'
                 }}>
                   {[
-                    { id: 'security' as TabType, icon: '🔍', label: 'Security Scan', color: '#00f5ff' },
-                    { id: 'review' as TabType, icon: '💻', label: 'Code Review', color: '#8b5cf6' },
-                    { id: 'architecture' as TabType, icon: '🏗️', label: 'Architecture', color: '#10b981' }
-                  ].map((tab) => (
+                    { id: 'security' as TabType, icon: '🔍', label: 'Security Scan', color: '#00f5ff', roles: ['ADMIN', 'DEVELOPER'] },
+                    { id: 'review' as TabType, icon: '💻', label: 'Code Review', color: '#8b5cf6', roles: ['ADMIN', 'DEVELOPER'] },
+                    { id: 'architecture' as TabType, icon: '🏗️', label: 'Architecture', color: '#10b981', roles: ['ADMIN', 'DEVELOPER'] }
+                  ].filter(tab => tab.roles.includes(user.role)).map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
@@ -681,6 +683,17 @@ export default function Home() {
                       textAlign: 'center'
                     }}>
                       ⚠️ {error}
+                    </div>
+                  )}
+
+                  {user.role === 'VIEWER' && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontStyle: 'italic'
+                    }}>
+                      Scanning is disabled for Viewer accounts. Please explore the Analytics or Reports tabs.
                     </div>
                   )}
                 </div>
@@ -1039,6 +1052,16 @@ export default function Home() {
             {/* VIEW: REPORTS */}
             {currentView === 'reports' && (
               <Reports />
+            )}
+
+            {/* VIEW: RBAC */}
+            {currentView === 'rbac' && (
+              <RBACManagement />
+            )}
+
+            {/* VIEW: AUDIT LOGS */}
+            {currentView === 'audit-logs' && (
+              <AuditLogs />
             )}
 
             {/* 🕒 FLOATING HISTORY BUTTON */}

@@ -6,23 +6,30 @@ import {
     BarChart3,
     Settings,
     FileText,
-    LogOut
+    LogOut,
+    ShieldAlert,
+    UserCog
 } from 'lucide-react';
 
 interface SidebarProps {
     currentView: string;
     setCurrentView: (view: string) => void;
+    user: any;
 }
 
-export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
-    const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { id: 'pr-automation', label: 'PR Auto-Review', icon: <GitPullRequest size={20} /> },
-        { id: 'team', label: 'Team Velocity', icon: <Users size={20} /> },
-        { id: 'analytics', label: 'ROI Analytics', icon: <BarChart3 size={20} /> },
-        { id: 'rules', label: 'Custom Rules', icon: <Settings size={20} /> },
-        { id: 'reports', label: 'Reports', icon: <FileText size={20} /> },
+export default function Sidebar({ currentView, setCurrentView, user }: SidebarProps) {
+    const allMenuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: ['ADMIN', 'DEVELOPER', 'VIEWER'] },
+        { id: 'pr-automation', label: 'PR Auto-Review', icon: <GitPullRequest size={20} />, roles: ['ADMIN', 'DEVELOPER'] },
+        { id: 'team', label: 'Team Velocity', icon: <Users size={20} />, roles: ['ADMIN', 'DEVELOPER'] },
+        { id: 'analytics', label: 'ROI Analytics', icon: <BarChart3 size={20} />, roles: ['ADMIN', 'DEVELOPER', 'VIEWER'] },
+        { id: 'rules', label: 'Custom Rules', icon: <Settings size={20} />, roles: ['ADMIN'] },
+        { id: 'reports', label: 'Reports', icon: <FileText size={20} />, roles: ['ADMIN', 'VIEWER'] },
+        { id: 'rbac', label: 'RBAC Management', icon: <UserCog size={20} />, roles: ['ADMIN'] },
+        { id: 'audit-logs', label: 'Audit Logs', icon: <ShieldAlert size={20} />, roles: ['ADMIN'] },
     ];
+
+    const menuItems = allMenuItems.filter(item => item.roles.includes(user?.role));
 
     return (
         <div style={{
@@ -122,11 +129,11 @@ export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
                         fontWeight: 'bold',
                         color: 'white'
                     }}>
-                        AC
+                        {user?.avatar || 'U'}
                     </div>
                     <div>
-                        <div style={{ color: 'white', fontWeight: '600', fontSize: '0.9rem' }}>Acme Corp</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>Enterprise Plan</div>
+                        <div style={{ color: 'white', fontWeight: '600', fontSize: '0.9rem' }}>{user?.name || 'User'}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>{user?.role}</div>
                     </div>
                 </div>
 
