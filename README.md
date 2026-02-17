@@ -28,19 +28,34 @@ text
 ├─ lodash Vulnerable (HIGH, 95%) → npm update
 └─ Memory Leak (MEDIUM, 85%) → AbortController
 🚀 Quick Start
-bash
-# Clone & Install
-git clone https://github.com/YOUR-USERNAME/codeguardian-ai.git
-cd codeguardian-ai
-npm install
 
-# Run Development
-npm run dev
-# → http://localhost:3000
+Follow these steps to get the enterprise suite running:
 
-# Build & Deploy
-npm run build
-vercel --prod
+1. **Install Dependencies**
+   ```bash
+   # Install frontend & root dependencies
+   npm install
+   
+   # Install backend dependencies
+   cd server && npm install
+   cd ..
+   ```
+
+2. **Run Everything (Concurrent Mode)**
+   This command starts BOTH the Next.js frontend (3000) and Express backend (5000) at once.
+   ```bash
+   npm run dev:full
+   ```
+
+3. **Access the App**
+   - Frontend: http://localhost:3000
+   - Backend API: http://127.0.0.1:5000
+
+---
+
+💡 **Individual Commands:**
+- Start Frontend only: `npm run dev`
+- Start Backend only: `npm run server`
 🛠 Tech Stack
 tsx
 Frontend: Next.js 15.5.12 (App Router) + React 18 + TypeScript
