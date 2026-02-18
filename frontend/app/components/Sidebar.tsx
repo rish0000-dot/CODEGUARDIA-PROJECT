@@ -8,8 +8,13 @@ import {
     FileText,
     LogOut,
     ShieldAlert,
-    UserCog
+    UserCog,
+    ChevronDown,
+    Shield,
+    CreditCard
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 interface SidebarProps {
     currentView: string;
@@ -19,6 +24,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ currentView, setCurrentView, user, logout }: SidebarProps) {
+    const router = useRouter();
+    const [showMenu, setShowMenu] = useState(false);
     const allMenuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: ['ADMIN', 'DEVELOPER', 'VIEWER'] },
         { id: 'pr-automation', label: 'PR Auto-Review', icon: <GitPullRequest size={20} />, roles: ['ADMIN', 'DEVELOPER'] },
@@ -137,24 +144,29 @@ export default function Sidebar({ currentView, setCurrentView, user, logout }: S
                 ))}
             </div>
 
-            {/* User Profile / Logout */}
+            {/* User Profile Management */}
             <div style={{
                 marginTop: 'auto',
                 paddingTop: '1.25rem',
                 borderTop: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem'
+                position: 'relative'
             }}>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.5rem',
-                    borderRadius: '12px',
-                    transition: 'background 0.2s',
-                    cursor: 'default'
-                }}>
+                <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        borderRadius: '16px',
+                        background: showMenu ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                    }}
+                >
                     <div style={{
                         width: '32px',
                         height: '32px',
@@ -166,7 +178,7 @@ export default function Sidebar({ currentView, setCurrentView, user, logout }: S
                         fontWeight: '800',
                         color: 'white',
                         fontSize: '0.8rem',
-                        boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                        flexShrink: 0
                     }}>
                         {user?.avatar || 'U'}
                     </div>
@@ -174,7 +186,7 @@ export default function Sidebar({ currentView, setCurrentView, user, logout }: S
                         <div style={{
                             color: 'white',
                             fontWeight: '600',
-                            fontSize: '0.85rem',
+                            fontSize: '0.8rem',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -183,48 +195,113 @@ export default function Sidebar({ currentView, setCurrentView, user, logout }: S
                         </div>
                         <div style={{
                             color: 'rgba(255,255,255,0.4)',
-                            fontSize: '0.7rem',
+                            fontSize: '0.65rem',
                             fontWeight: '700',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
+                            textTransform: 'uppercase'
                         }}>
                             {user?.role}
                         </div>
                     </div>
-                </div>
-
-                <button
-                    onClick={() => logout()}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                        fontWeight: '600',
-                        padding: '0.5rem',
-                        transition: 'all 0.2s ease',
-                        width: '100%'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                        e.currentTarget.style.color = '#fff';
-                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
-                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-                    }}
-                >
-                    <LogOut size={14} />
-                    Sign Out
+                    <ChevronDown size={14} style={{
+                        color: 'rgba(255,255,255,0.3)',
+                        transform: showMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s ease'
+                    }} />
                 </button>
+
+                {/* DROPDOWN MENU */}
+                {showMenu && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 12px)',
+                        left: 0,
+                        width: '100%',
+                        background: 'rgba(15,15,35,0.98)',
+                        backdropFilter: 'blur(24px)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '20px',
+                        padding: '0.5rem',
+                        boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
+                        zIndex: 1000,
+                        animation: 'fadeIn 0.2s ease-out'
+                    }}>
+                        <div style={{ padding: '0.5rem 0.75rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.25rem' }}>
+                            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: '800' }}>Logged in as</div>
+                            <div style={{ fontSize: '0.75rem', color: 'white', fontWeight: '500', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
+                        </div>
+
+                        {[
+                            { icon: <Shield size={14} />, label: user?.mfaEnabled ? 'MFA Enabled' : 'Enable MFA', onClick: () => router.push('/mfa-setup'), color: user?.mfaEnabled ? '#10b981' : 'rgba(255,255,255,0.7)' },
+                            { icon: <Settings size={14} />, label: 'Settings', onClick: () => setCurrentView('rules') },
+                            { icon: <Users size={14} />, label: 'Team', onClick: () => setCurrentView('team') },
+                            { icon: <CreditCard size={14} />, label: 'Billing', onClick: () => { } },
+                        ].map((item, i) => (
+                            <button
+                                key={i}
+                                onClick={() => { item.onClick(); setShowMenu(false); }}
+                                style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    padding: '0.65rem 0.75rem',
+                                    borderRadius: '10px',
+                                    color: item.color || 'rgba(255,255,255,0.7)',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    textAlign: 'left'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.color = item.color || 'rgba(255,255,255,0.7)';
+                                }}
+                            >
+                                {item.icon}
+                                {item.label}
+                            </button>
+                        ))}
+
+                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '0.25rem 0' }} />
+
+                        <button
+                            onClick={() => logout()}
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.65rem 0.75rem',
+                                borderRadius: '10px',
+                                color: '#faafaf',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+                                e.currentTarget.style.color = '#ff8080';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = '#faafaf';
+                            }}
+                        >
+                            <LogOut size={14} />
+                            Sign Out
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

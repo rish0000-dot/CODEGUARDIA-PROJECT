@@ -140,6 +140,64 @@ export default function CustomRules() {
 
                     </div>
                 ))}
+
+                {/* ENTERPRISE SECURITY SHORTCUT */}
+                <div
+                    onClick={() => window.location.href = '/mfa-setup'}
+                    style={{
+                        background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.1), rgba(139, 92, 246, 0.1))',
+                        borderRadius: '16px',
+                        padding: '1.5rem',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        backdropFilter: 'blur(10px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginTop: '1rem'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                        e.currentTarget.style.boxShadow = '0 10px 30px rgba(16, 185, 129, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            padding: '1rem',
+                            borderRadius: '12px'
+                        }}>
+                            <Shield size={20} color="#10b981" />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '0.25rem', color: 'white' }}>
+                                Enterprise Security (MFA)
+                            </div>
+                            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
+                                Manage multi-factor authentication and account hardening.
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{
+                        padding: '0.5rem 1rem',
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        borderRadius: '10px',
+                        fontSize: '0.7rem',
+                        fontWeight: '800',
+                        color: '#10b981',
+                        letterSpacing: '1px',
+                        textTransform: 'uppercase'
+                    }}>
+                        Configure
+                    </div>
+                </div>
             </div>
 
         </div>

@@ -1,235 +1,277 @@
 'use client'
-
 import { useState, useEffect } from 'react'
+import { FileText, Search, Filter, Download, ChevronLeft, ChevronRight, Loader2, ShieldAlert, CheckCircle, User, Activity } from 'lucide-react'
 import axios from 'axios'
-import { useAuth } from '../context/AuthContext'
 import { toast } from 'sonner'
-import {
-    ShieldAlert,
-    FileDown,
-    Search,
-    Filter,
-    Calendar,
-    User,
-    Activity,
-    ChevronLeft,
-    ChevronRight,
-    RefreshCw
-} from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useAuth } from '../context/AuthContext'
 
-interface AuditLog {
-    id: string;
-    timestamp: string;
-    user: string;
-    action: string;
-    details: string;
+interface Log {
+    id: string
+    timestamp: string
+    user: string
+    action: string
+    details: string
 }
 
 export default function AuditLogs() {
-    const [logs, setLogs] = useState<AuditLog[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [searchUser, setSearchUser] = useState('');
-    const [searchAction, setSearchAction] = useState('');
-    const { token } = useAuth();
+    const { user } = useAuth()
+    const [logs, setLogs] = useState<Log[]>([])
+    const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalLogs, setTotalLogs] = useState(0)
+    const [filters, setFilters] = useState({
+        user: '',
+        action: ''
+    })
+    const [isExporting, setIsExporting] = useState(false)
 
     const fetchLogs = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
-            const response = await axios.get('/api/admin/audit-logs', {
+            const token = localStorage.getItem('token')
+            const response = await axios.get('http://localhost:5000/api/admin/audit-logs', {
                 params: {
                     page,
                     limit: 10,
-                    user: searchUser,
-                    action: searchAction
+                    user: filters.user || undefined,
+                    action: filters.action || undefined
                 },
                 headers: { Authorization: `Bearer ${token}` }
-            });
+            })
+
             if (response.data.success) {
-                setLogs(response.data.logs);
-                setTotalPages(response.data.totalPages);
+                setLogs(response.data.logs)
+                setTotalPages(response.data.totalPages)
+                setTotalLogs(response.data.total)
             }
-        } catch (error) {
-            toast.error('Failed to fetch audit logs');
+        } catch (err) {
+            console.error('Failed to fetch audit logs:', err)
+            toast.error('Failed to load audit logs')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     useEffect(() => {
-        fetchLogs();
-    }, [page, token]);
+        const delayDebounceFn = setTimeout(() => {
+            fetchLogs()
+        }, 500)
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        setPage(1);
-        fetchLogs();
-    };
+        return () => clearTimeout(delayDebounceFn)
+    }, [page, filters])
 
-    const exportCSV = async () => {
+    const handleExport = async () => {
+        setIsExporting(true)
         try {
-            const response = await axios.get('/api/admin/audit-logs/export', {
+            const token = localStorage.getItem('token')
+            const response = await axios.get('http://localhost:5000/api/admin/audit-logs/export', {
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob'
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Audit logs exported to CSV');
-        } catch (error) {
-            toast.error('Export failed');
-        }
-    };
+            })
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return {
-            time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            full: date.toLocaleString()
-        };
-    };
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.csv`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            toast.success('Audit logs exported successfully')
+        } catch (err) {
+            console.error('Export failed:', err)
+            toast.error('Failed to export logs')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleString(undefined, {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        })
+    }
 
     const getActionColor = (action: string) => {
-        if (action.includes('FAILED') || action.includes('DENIED')) return 'text-red-400 bg-red-400/10 border-red-400/20';
-        if (action.includes('SUCCESS') || action.includes('ENABLED')) return 'text-green-400 bg-green-400/10 border-green-400/20';
-        if (action.includes('ROLE')) return 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20';
-        return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-    };
+        if (action.includes('DELETE') || action.includes('failed') || action.includes('DENIED')) return '#ef4444' // Red
+        if (action.includes('CREATED') || action.includes('SUCCESS') || action.includes('ENABLED')) return '#10b981' // Green
+        if (action.includes('LOGIN')) return '#3b82f6' // Blue
+        return '#f59e0b' // Yellow/Orange default
+    }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div style={{ maxWidth: '1200px', margin: '0 auto', color: 'white' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                    <h1 className="text-4xl font-black text-white tracking-tight">Security Audit Logs</h1>
-                    <p className="text-gray-400 mt-2 font-medium italic">Immutable ledger of enterprise system activities</p>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <ShieldAlert size={32} color="#f59e0b" /> Security Audit Logs
+                    </h1>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem' }}>
+                        Track and monitor all sensitive system activities.
+                    </p>
                 </div>
-                <div className="flex items-center gap-3">
+
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{
+                        background: 'rgba(255,255,255,0.05)', padding: '0.5rem 1rem', borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)'
+                    }}>
+                        Total Events: <span style={{ color: 'white', fontWeight: '700' }}>{totalLogs}</span>
+                    </div>
                     <button
-                        onClick={exportCSV}
-                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20"
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            border: 'none', borderRadius: '12px', color: 'white', fontWeight: '600',
+                            cursor: isExporting ? 'wait' : 'pointer',
+                            boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)',
+                            transition: 'all 0.2s'
+                        }}
                     >
-                        <FileDown className="w-5 h-5" />
+                        {isExporting ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                         Export CSV
-                    </button>
-                    <button
-                        onClick={fetchLogs}
-                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all"
-                    >
-                        <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
             </div>
 
             {/* Filters */}
-            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 border border-white/10 p-6 rounded-[24px]">
-                <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+            <div style={{
+                background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)', marginBottom: '2rem',
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem'
+            }}>
+                <div style={{ position: 'relative' }}>
+                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
                     <input
-                        type="text"
-                        placeholder="Filter by User Email"
-                        value={searchUser}
-                        onChange={(e) => setSearchUser(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                        type="text" placeholder="Filter by User..."
+                        value={filters.user}
+                        onChange={(e) => { setFilters({ ...filters, user: e.target.value }); setPage(1); }}
+                        style={{
+                            width: '100%', padding: '0.75rem 1rem 0.75rem 2.8rem',
+                            background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '10px', color: 'white', outline: 'none', fontSize: '0.9rem'
+                        }}
                     />
                 </div>
-                <div className="relative group">
-                    <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+                <div style={{ position: 'relative' }}>
+                    <Filter size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
                     <input
-                        type="text"
-                        placeholder="Filter by Action"
-                        value={searchAction}
-                        onChange={(e) => setSearchAction(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                        type="text" placeholder="Filter by Action (e.g. LOGIN)..."
+                        value={filters.action}
+                        onChange={(e) => { setFilters({ ...filters, action: e.target.value }); setPage(1); }}
+                        style={{
+                            width: '100%', padding: '0.75rem 1rem 0.75rem 2.8rem',
+                            background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '10px', color: 'white', outline: 'none', fontSize: '0.9rem'
+                        }}
                     />
                 </div>
-                <button type="submit" className="w-full bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl py-3 flex items-center justify-center gap-2 transition-all">
-                    <Search className="w-4 h-4" />
-                    Search Logs
-                </button>
-            </form>
-
-            {/* Timeline View */}
-            <div className="relative space-y-6">
-                <div className="absolute left-8 top-0 bottom-0 w-px bg-white/10 z-0" />
-
-                <AnimatePresence mode="popLayout">
-                    {logs.map((log, index) => (
-                        <motion.div
-                            key={log.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="relative z-10 grid grid-cols-[80px_1fr] md:grid-cols-[100px_1fr] gap-6"
-                        >
-                            <div className="flex flex-col items-center pt-1">
-                                <div className="text-gray-500 font-black text-sm">{formatDate(log.timestamp).time}</div>
-                                <div className="text-[10px] text-gray-600 font-bold uppercase tracking-tighter">Today</div>
-                            </div>
-
-                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.08] transition-all group">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-xl border ${getActionColor(log.action)}`}>
-                                            <ShieldAlert className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-white font-bold">{log.user}</span>
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-black border uppercase ${getActionColor(log.action)}`}>
-                                                    {log.action}
-                                                </span>
-                                            </div>
-                                            <p className="text-gray-400 text-sm mt-1">{log.details || 'No additional parameters'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-xs text-gray-600 font-mono group-hover:text-gray-500 transition-colors">
-                                        {log.id}
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-
-                {logs.length === 0 && !loading && (
-                    <div className="py-20 text-center text-gray-500">
-                        <Calendar className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                        <p className="text-xl font-bold">No events recorded for these filters</p>
-                    </div>
-                )}
             </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl p-4">
-                <div className="text-sm text-gray-500">
-                    Showing <span className="text-white font-bold">{(page - 1) * 10 + 1}-{Math.min(page * 10, 100)}</span> of <span className="text-white font-bold">Recent Activity</span>
+            {/* Logs Table */}
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                <div style={{
+                    display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1.5fr 3fr',
+                    padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.05)',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.5)', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase'
+                }}>
+                    <div>Timestamp</div>
+                    <div>User</div>
+                    <div>Action</div>
+                    <div>Details</div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div style={{ minHeight: '300px' }}>
+                    {loading ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'rgba(255,255,255,0.4)' }}>
+                            <Loader2 className="animate-spin" size={32} style={{ marginBottom: '1rem' }} />
+                            Loading logs...
+                        </div>
+                    ) : logs.length === 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'rgba(255,255,255,0.4)' }}>
+                            <Activity size={32} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                            No audit logs found.
+                        </div>
+                    ) : (
+                        logs.map((log) => (
+                            <motion.div
+                                key={log.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                style={{
+                                    display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1.5fr 3fr',
+                                    padding: '1.25rem 1.5rem',
+                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                    alignItems: 'center',
+                                    fontSize: '0.9rem',
+                                    color: 'rgba(255,255,255,0.8)'
+                                }}
+                                className="hover:bg-white/5 transition-colors"
+                            >
+                                <div style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                                    {formatDate(log.timestamp)}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+                                    <User size={14} color="rgba(255,255,255,0.5)" />
+                                    {log.user}
+                                </div>
+                                <div>
+                                    <span style={{
+                                        padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700',
+                                        background: `${getActionColor(log.action)}20`,
+                                        color: getActionColor(log.action),
+                                        border: `1px solid ${getActionColor(log.action)}40`
+                                    }}>
+                                        {log.action}
+                                    </span>
+                                </div>
+                                <div style={{ color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.details}>
+                                    {log.details || '-'}
+                                </div>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+
+                {/* Pagination */}
+                <div style={{
+                    padding: '1rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
                     <button
-                        disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
-                        className="p-2 hover:bg-white/10 rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1 || loading}
+                        style={{
+                            background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '8px', padding: '0.5rem', color: 'white',
+                            cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1
+                        }}
                     >
-                        <ChevronLeft className="w-6 h-6 text-white" />
+                        <ChevronLeft size={20} />
                     </button>
-                    <div className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 font-bold">
-                        Page {page} of {totalPages}
-                    </div>
+                    <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)' }}>
+                        Page <span style={{ color: 'white', fontWeight: '700' }}>{page}</span> of {totalPages}
+                    </span>
                     <button
-                        disabled={page === totalPages}
-                        onClick={() => setPage(p => p + 1)}
-                        className="p-2 hover:bg-white/10 rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages || loading}
+                        style={{
+                            background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '8px', padding: '0.5rem', color: 'white',
+                            cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1
+                        }}
                     >
-                        <ChevronRight className="w-6 h-6 text-white" />
+                        <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
         </div>
-    );
+    )
 }
