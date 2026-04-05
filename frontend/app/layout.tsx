@@ -1,6 +1,9 @@
 import './globals.css'
 import { AuthProvider } from './context/AuthContext'
+import { SocketProvider } from './context/SocketContext'
 import { Toaster } from 'sonner'
+
+import SessionManager from './components/SessionManager'
 
 export default function RootLayout({
   children,
@@ -11,8 +14,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased font-sans">
         <AuthProvider>
-          <Toaster position="top-right" richColors />
-          {children}
+          <SocketProvider>
+            <Toaster position="top-right" richColors />
+            <SessionManager />
+            {children}
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>

@@ -18,44 +18,47 @@ Feature	Status	Description
 📁 File + Line	✅ Exact locations	Login.jsx:42, .env:5
 💡 Auto-Fix	✅ Copy-paste	npm install dompurify
 📤 PDF Export	🔄 Coming Soon	Executive reports
-🔥 Production Demo Results
-text
-🚨 rish0000-dot/Portfolio → 72/100 🔴 HIGH RISK
-┌─ XSS Vulnerability (HIGH, 92%) → DOMPurify
-├─ SQL Injection (CRITICAL, 98%) → Parameterized queries  
-├─ OpenAI API Key Leaked (CRITICAL, 99%) → .gitignore
-├─ AWS Access Key (CRITICAL, 99%) → IAM rotation
-├─ lodash Vulnerable (HIGH, 95%) → npm update
-└─ Memory Leak (MEDIUM, 85%) → AbortController
-🚀 Quick Start
+🔥 Production Demo# 🏗️ CodeGuardian Professional Monorepo
 
-Follow these steps to get the enterprise suite running:
+Welcome to the **Enterprise-Grade** architecture for CodeGuardian AI. This project uses a systematic monorepo structure with dedicated workspaces for Frontend and Backend.
 
-1. **Install Dependencies**
+## 📂 Project Structure
+```bash
+CODEGUARDIA-PROJECT/
+├── frontend/             # Next.js (Port 3000)
+│   ├── app/              # UI & Routing
+│   ├── public/           # Assets
+│   └── package.json      # Frontend Deps
+├── backend/              # Express JS (Port 5000)
+│   ├── server.js         # API Logic
+│   └── package.json      # Backend Deps
+├── package.json          # Root Workspace Controller
+└── .env.local            # Environment Secrets
+```
+
+## 🚀 Getting Started
+
+1. **Install All Dependencies**
+   Run this in the root folder to install everything in one go:
    ```bash
-   # Install frontend & root dependencies
-   npm install
-   
-   # Install backend dependencies
-   cd server && npm install
-   cd ..
+   npm run install:all
    ```
 
-2. **Run Everything (Concurrent Mode)**
-   This command starts BOTH the Next.js frontend (3000) and Express backend (5000) at once.
+2. **Run the Full Suite**
+   Starts both systems concurrently with a single command:
    ```bash
-   npm run dev:full
+   npm run dev
    ```
 
-3. **Access the App**
-   - Frontend: http://localhost:3000
-   - Backend API: http://127.0.0.1:5000
+3. **Links**
+   - **Frontend**: [http://localhost:3000](http://localhost:3000)
+   - **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health) (Proxied)
 
 ---
 
-💡 **Individual Commands:**
-- Start Frontend only: `npm run dev`
-- Start Backend only: `npm run server`
+💡 **Systematic Workflow:**
+- To only work on frontend: `npm run dev:frontend`
+- To only work on backend: `npm run dev:backend`
 🛠 Tech Stack
 tsx
 Frontend: Next.js 15.5.12 (App Router) + React 18 + TypeScript

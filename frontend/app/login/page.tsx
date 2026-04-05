@@ -125,6 +125,13 @@ export default function LoginPage() {
                             </AnimatePresence>
                         </motion.button>
 
+                        <div className="text-center mt-4">
+                            <p className="text-sm text-indigo-100/50">
+                                Don't have an account? {' '}
+                                <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">Sign Up</a>
+                            </p>
+                        </div>
+
                         {/* Demo Credentials Helper */}
                         <div className="mt-8 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-center">
                             <p className="text-xs text-indigo-300/50 uppercase tracking-widest font-bold mb-2">Demo Access</p>

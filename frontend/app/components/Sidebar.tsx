@@ -11,7 +11,8 @@ import {
     UserCog,
     ChevronDown,
     Shield,
-    CreditCard
+    CreditCard,
+    Slack
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -34,10 +35,13 @@ export default function Sidebar({ currentView, setCurrentView, user, logout }: S
         { id: 'rules', label: 'Custom Rules', icon: <Settings size={20} />, roles: ['ADMIN'] },
         { id: 'reports', label: 'Reports', icon: <FileText size={20} />, roles: ['ADMIN', 'VIEWER'] },
         { id: 'rbac', label: 'RBAC Management', icon: <UserCog size={20} />, roles: ['ADMIN'] },
+        { id: 'integrations', label: 'Integrations', icon: <Slack size={20} />, roles: ['ADMIN', 'DEVELOPER'] },
         { id: 'audit-logs', label: 'Audit Logs', icon: <ShieldAlert size={20} />, roles: ['ADMIN'] },
     ];
 
-    const menuItems = allMenuItems.filter(item => item.roles.includes(user?.role));
+    const menuItems = allMenuItems.filter(item =>
+        item.roles.some(role => role.toUpperCase() === user?.role?.toUpperCase())
+    );
 
     return (
         <div style={{

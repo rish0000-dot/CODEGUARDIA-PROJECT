@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Users, Shield, Plus, MoreVertical, Trash2, Check, X, Search, Lock } from 'lucide-react'
+import { Users, Shield, Plus, MoreVertical, Trash2, Check, X, Search, Lock, Unlock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { toast } from 'sonner'
@@ -24,7 +24,7 @@ export default function RBACManagement() {
     const fetchUsers = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:5000/api/admin/users', {
+            const response = await axios.get('/api/admin/users', {
                 headers: { Authorization: `Bearer ${token}` }
             })
             setUsers(response.data.users)
@@ -48,7 +48,7 @@ export default function RBACManagement() {
 
         try {
             const token = localStorage.getItem('token')
-            await axios.post('http://localhost:5000/api/admin/users', formData, {
+            await axios.post('/api/admin/users', formData, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             toast.success('User added successfully')
@@ -61,7 +61,7 @@ export default function RBACManagement() {
     }
 
     const handleDeleteUser = async (id: string, email: string) => {
-        if (email === currentUser.email) {
+        if (email === currentUser?.email) {
             toast.error("You cannot delete your own account.")
             return
         }
@@ -70,13 +70,26 @@ export default function RBACManagement() {
 
         try {
             const token = localStorage.getItem('token')
-            await axios.delete(`http://localhost:5000/api/admin/users/${id}`, {
+            await axios.delete(`/api/admin/users/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            toast.success('User removed successfully')
+            toast.success('User removed')
             fetchUsers()
-        } catch (err) {
-            toast.error('Failed to delete user')
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to delete user')
+        }
+    }
+
+    const handleUnlockUser = async (id: string, email: string) => {
+        try {
+            const token = localStorage.getItem('token')
+            await axios.post(`/api/admin/users/${id}/unlock`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            toast.success(`${email} unlocked`)
+            fetchUsers()
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to unlock user')
         }
     }
 
@@ -179,16 +192,32 @@ export default function RBACManagement() {
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>{u.email}</div>
                                 <div>
-                                    <span style={{
-                                        padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700',
-                                        background: u.role === 'ADMIN' ? 'rgba(139, 92, 246, 0.2)' : u.role === 'DEVELOPER' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.1)',
-                                        color: u.role === 'ADMIN' ? '#c084fc' : u.role === 'DEVELOPER' ? '#60a5fa' : 'rgba(255,255,255,0.8)'
-                                    }}>
-                                        {u.role}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{
+                                            padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700',
+                                            background: u.role === 'ADMIN' ? 'rgba(139, 92, 246, 0.2)' : u.role === 'DEVELOPER' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.1)',
+                                            color: u.role === 'ADMIN' ? '#c084fc' : u.role === 'DEVELOPER' ? '#60a5fa' : 'rgba(255,255,255,0.8)'
+                                        }}>
+                                            {u.role}
+                                        </span>
+                                        {u.locked_until && new Date(u.locked_until) > new Date() && (
+                                            <span style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+                                                LOCKED
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    {u.email !== currentUser.email && (
+                                <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                    {u.locked_until && new Date(u.locked_until) > new Date() && (
+                                        <button
+                                            onClick={() => handleUnlockUser(u.id, u.email)}
+                                            style={{ padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', border: 'none', color: '#10b981', cursor: 'pointer', borderRadius: '8px' }}
+                                            title="Unlock Account"
+                                        >
+                                            <Unlock size={18} />
+                                        </button>
+                                    )}
+                                    {u.email !== currentUser?.email && (
                                         <button
                                             onClick={() => handleDeleteUser(u.id, u.email)}
                                             style={{

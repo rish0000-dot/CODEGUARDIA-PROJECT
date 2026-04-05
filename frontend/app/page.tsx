@@ -11,6 +11,11 @@ import CustomRules from './components/CustomRules'
 import Reports from './components/Reports'
 import RBACManagement from './components/RBACManagement'
 import AuditLogs from './components/AuditLogs'
+import { useSocket } from './context/SocketContext'
+import { ProgressRing } from './components/ProgressRing'
+import { NotificationToast } from './components/NotificationToast'
+import Integrations from './components/Integrations'
+import { toast } from 'sonner'
 
 interface AIReviewResult {
   overallScore: number;
@@ -48,12 +53,14 @@ type TabType = 'security' | 'review' | 'architecture';
 // Backwards compatibility interfaces
 interface Issue {
   id: string
-  file: string
-  line: number
+  file_path: string // Updated to match backend
+  line_start: number // Updated to match backend
   category: string
   severity: string
   confidence: number
   suggestion: string
+  assigned_to: string | null
+  status: string
 }
 
 interface ScanResult {
@@ -80,6 +87,15 @@ export default function Home() {
   const [aiLoading, setAILoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [teamUsers, setTeamUsers] = useState<any[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
+  const [notifications, setNotifications] = useState<string[]>([]);
+  const { socket } = useSocket();
   const router = useRouter();
 
   const { user, logout, loading: authLoading } = useAuth();
@@ -103,6 +119,39 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const res = await fetch('/api/admin/users', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+        if (data.success) setTeamUsers(data.users);
+      } catch (e) { console.error('Failed to fetch team', e); }
+    };
+    if (user) fetchTeam();
+  }, [user]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('scan_progress', (data: any) => {
+      if (data.repoUrl === repoUrl) {
+        setScanProgress(data.progress);
+        setScanStatus(data.status);
+
+        if (data.status === 'COMPLETED') {
+          setNotifications(prev => [...prev, `Scan completed for ${data.repoUrl}! Found ${data.issuesCount || 6} issues.`]);
+          toast.success(`Scan completed for ${data.repoUrl}`);
+        }
+      }
+    });
+
+    return () => {
+      socket.off('scan_progress');
+    };
+  }, [socket, repoUrl]);
+
+  useEffect(() => {
     try {
       const history = JSON.parse(localStorage.getItem('scanHistory') || '[]')
       setScanHistory(history.slice(0, 10))
@@ -122,6 +171,8 @@ export default function Home() {
     setError('')
     setResult(null)
     setAIReview(null)
+    setScanProgress(0)
+    setScanStatus('INITIALIZING')
 
     try {
       const response = await fetch('/api/scan', {
@@ -159,6 +210,85 @@ export default function Home() {
       setLoading(false)
     }
   }
+
+  const assignIssue = async (issueId: string, userId: string | null) => {
+    try {
+      const res = await fetch('/api/issues/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ issueId, userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(prev => prev ? {
+          ...prev,
+          issues: prev.issues.map(i => i.id === issueId ? { ...i, assigned_to: userId } : i)
+        } : null);
+        toast.info(`Issue assigned successfully`);
+      }
+    } catch (e) { toast.error('Assignment failed'); }
+  };
+
+  const updateIssueStatus = async (issueId: string, status: string) => {
+    try {
+      const res = await fetch('/api/issues/status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ issueId, status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(prev => prev ? {
+          ...prev,
+          issues: prev.issues.map(i => i.id === issueId ? { ...i, status } : i)
+        } : null);
+        toast.success(`Status updated to ${status}`);
+      }
+    } catch (e) { toast.error('Status update failed'); }
+  };
+
+  const exportToCSV = () => {
+    if (!result?.issues) return;
+    const headers = ['ID', 'Category', 'Severity', 'Status', 'File', 'Line', 'Assignee'];
+    const rows = filteredIssues.map(i => [
+      i.id,
+      i.category,
+      i.severity,
+      i.status,
+      i.file_path,
+      i.line_start,
+      teamUsers.find(u => u.id === i.assigned_to)?.name || 'Unassigned'
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `codeguardian-scan-${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV Exported Successfully');
+  };
+
+  const filteredIssues = result?.issues.filter(i => {
+    const matchesAssignee = assigneeFilter === 'all' ? true : (assigneeFilter === 'unassigned' ? !i.assigned_to : i.assigned_to === assigneeFilter);
+    const matchesSeverity = severityFilter === 'all' ? true : i.severity === severityFilter;
+    const matchesStatus = statusFilter === 'all' ? true : i.status === statusFilter;
+    const matchesSearch = searchQuery === '' ? true : (
+      i.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      i.file_path.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return matchesAssignee && matchesSeverity && matchesStatus && matchesSearch;
+  }) || [];
 
   // 🛡️ PRODUCTION MASTER VALIDATOR (Client-side mirror)
   const masterValidator = (input: string, scanType: string) => {
@@ -542,7 +672,21 @@ export default function Home() {
                       Scanning is disabled for Viewer accounts. Please explore the Analytics or Reports tabs.
                     </div>
                   )}
+
+                  {loading && (
+                    <div style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem' }}>
+                      <ProgressRing radius={100} stroke={10} progress={scanProgress} status={scanStatus} />
+                    </div>
+                  )}
                 </div>
+
+                {notifications.map((note, idx) => (
+                  <NotificationToast
+                    key={idx}
+                    message={note}
+                    onClose={() => setNotifications(prev => prev.filter((_, i) => i !== idx))}
+                  />
+                ))}
 
                 {/* 🔥 ENTERPRISE RESULTS DASHBOARD */}
                 {(result || aiReview) && !loading && !aiLoading && (
@@ -634,19 +778,98 @@ export default function Home() {
                     </div>
 
                     {/* 🔥 CRITICAL ISSUES */}
-                    <h3 style={{
-                      fontSize: '1.8rem',
-                      color: '#00f5ff',
-                      marginBottom: '1.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem'
-                    }}>
-                      🚨 Critical Issues Found ({(aiReview?.issues?.length || result?.issues?.length || 0)})
-                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{
+                          fontSize: '1.8rem',
+                          color: '#00f5ff',
+                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem'
+                        }}>
+                          🚨 Issues ({(filteredIssues.length)})
+                        </h3>
+                        <button
+                          onClick={exportToCSV}
+                          style={{
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            color: 'white',
+                            padding: '0.5rem 1.5rem',
+                            borderRadius: '10px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}
+                        >
+                          📥 Export CSV
+                        </button>
+                      </div>
+
+                      {/* ADVANCED FILTERS ROW */}
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '1.25rem', borderRadius: '16px' }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <input
+                            type="text"
+                            placeholder="Search issues or files..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{
+                              width: '100%',
+                              background: 'rgba(0,0,0,0.2)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '8px',
+                              padding: '0.5rem 1rem',
+                              color: 'white',
+                              outline: 'none'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                          <select
+                            value={severityFilter}
+                            onChange={(e) => setSeverityFilter(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', padding: '0.5rem', outline: 'none' }}
+                          >
+                            <option value="all" style={{ background: '#1e1b4b' }}>All Severities</option>
+                            <option value="CRITICAL" style={{ background: '#1e1b4b' }}>Critical</option>
+                            <option value="HIGH" style={{ background: '#1e1b4b' }}>High</option>
+                            <option value="MEDIUM" style={{ background: '#1e1b4b' }}>Medium</option>
+                            <option value="LOW" style={{ background: '#1e1b4b' }}>Low</option>
+                          </select>
+
+                          <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', padding: '0.5rem', outline: 'none' }}
+                          >
+                            <option value="all" style={{ background: '#1e1b4b' }}>All Statuses</option>
+                            <option value="open" style={{ background: '#1e1b4b' }}>Open</option>
+                            <option value="in_progress" style={{ background: '#1e1b4b' }}>In Progress</option>
+                            <option value="resolved" style={{ background: '#1e1b4b' }}>Resolved</option>
+                          </select>
+
+                          <select
+                            value={assigneeFilter}
+                            onChange={(e) => setAssigneeFilter(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', padding: '0.5rem', outline: 'none' }}
+                          >
+                            <option value="all" style={{ background: '#1e1b4b' }}>All Member</option>
+                            <option value="unassigned" style={{ background: '#1e1b4b' }}>Unassigned</option>
+                            {teamUsers.map(u => (
+                              <option key={u.id} value={u.id} style={{ background: '#1e1b4b' }}>{u.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
 
                     <div style={{ display: 'grid', gap: '1.5rem' }}>
-                      {(aiReview?.issues || result?.issues || []).slice(0, 5).map((issue: any, i: number) => (
+                      {filteredIssues.map((issue: any, i: number) => (
                         <div key={i} style={{
                           padding: '2rem',
                           borderRadius: '16px',
@@ -660,24 +883,85 @@ export default function Home() {
                             alignItems: 'flex-start',
                             marginBottom: '1rem'
                           }}>
-                            <h4 style={{
-                              fontSize: '1.4rem',
-                              fontWeight: '700',
-                              color: 'white',
-                              margin: 0
-                            }}>
-                              {issue.line ? `Line ${issue.line}: ` : ''}{issue.category || issue.message}
-                            </h4>
-                            <span style={{
-                              background: issue.severity === 'HIGH' || issue.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
-                              color: 'white',
-                              padding: '0.25rem 1rem',
-                              borderRadius: '20px',
-                              fontSize: '0.875rem',
-                              fontWeight: '700'
-                            }}>
-                              {issue.severity || issue.confidence ? `${issue.confidence || 100}%` : 'CRITICAL'}
-                            </span>
+                            <div>
+                              <h4 style={{
+                                fontSize: '1.4rem',
+                                fontWeight: '700',
+                                color: 'white',
+                                margin: 0
+                              }}>
+                                {issue.line_start ? `Line ${issue.line_start}: ` : ''}{issue.category || issue.message}
+                              </h4>
+                              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                                File: {issue.file_path}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <span style={{
+                                background: issue.status === 'resolved' ? '#10b981' : issue.status === 'in_progress' ? '#3b82f6' : 'rgba(255,255,255,0.1)',
+                                color: 'white',
+                                padding: '0.25rem 0.75rem',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>
+                                {issue.status}
+                              </span>
+                              <span style={{
+                                background: issue.severity === 'HIGH' || issue.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                                color: 'white',
+                                padding: '0.25rem 1rem',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700'
+                              }}>
+                                {issue.severity || 'CRITICAL'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Assignee:</span>
+                              <select
+                                value={issue.assigned_to || ''}
+                                onChange={(e) => assignIssue(issue.id, e.target.value || null)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#8b5cf6',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  outline: 'none'
+                                }}
+                              >
+                                <option value="" style={{ background: '#1e1b4b' }}>Unassigned</option>
+                                {teamUsers.map(u => (
+                                  <option key={u.id} value={u.id} style={{ background: '#1e1b4b' }}>{u.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Status:</span>
+                              <select
+                                value={issue.status}
+                                onChange={(e) => updateIssueStatus(issue.id, e.target.value)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'white',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  outline: 'none'
+                                }}
+                              >
+                                <option value="open" style={{ background: '#1e1b4b' }}>Open</option>
+                                <option value="in_progress" style={{ background: '#1e1b4b' }}>In Progress</option>
+                                <option value="resolved" style={{ background: '#1e1b4b' }}>Resolved</option>
+                              </select>
+                            </div>
                           </div>
 
                           <p style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '1rem' }}>
@@ -903,6 +1187,11 @@ export default function Home() {
             {/* VIEW: RBAC */}
             {currentView === 'rbac' && (
               <RBACManagement />
+            )}
+
+            {/* VIEW: INTEGRATIONS */}
+            {currentView === 'integrations' && (
+              <Integrations />
             )}
 
             {/* VIEW: AUDIT LOGS */}

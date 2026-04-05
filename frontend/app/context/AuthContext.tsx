@@ -21,6 +21,8 @@ interface AuthContextType {
     user: User | null;
     token: string | null;
     login: (email: string, password: string) => Promise<{ requiresMFA?: boolean; mfaToken?: string } | void>;
+    signup: (email: string, password: string, name: string) => Promise<void>;
+    verifyEmail: (token: string) => Promise<boolean>;
     verifyMFA: (mfaToken: string, code: string) => Promise<void>;
     logout: () => void;
     loading: boolean;
@@ -122,12 +124,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const signup = async (email: string, password: string, name: string) => {
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, name })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast.success(data.message);
+                router.push('/login');
+            } else {
+                if (data.redirect) {
+                    toast.info('Account already exists, redirecting to login...');
+                    router.push(data.redirect);
+                } else {
+                    toast.error(data.error || 'Signup failed');
+                }
+            }
+        } catch (error) {
+            toast.error('Signup connection error');
+        }
+    };
+
+    const verifyEmail = async (vToken: string) => {
+        try {
+            const response = await fetch('/api/auth/verify-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: vToken })
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success('Email verified! You can now login.');
+                return true;
+            }
+            toast.error(data.error || 'Verification failed');
+            return false;
+        } catch (error) {
+            return false;
+        }
+    };
+
     const logout = () => {
         setToken(null);
         setUser(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        toast.info('Logged out successfully');
+        toast.info('Logged out securely');
         router.push('/login');
     };
 

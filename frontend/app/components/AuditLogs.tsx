@@ -31,7 +31,7 @@ export default function AuditLogs() {
         setLoading(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:5000/api/admin/audit-logs', {
+            const response = await axios.get('/api/admin/audit-logs', {
                 params: {
                     page,
                     limit: 10,
@@ -66,7 +66,7 @@ export default function AuditLogs() {
         setIsExporting(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:5000/api/admin/audit-logs/export', {
+            const response = await axios.get('/api/admin/audit-logs/export', {
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob'
             })
