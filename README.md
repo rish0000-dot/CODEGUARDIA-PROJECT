@@ -22,7 +22,7 @@ Feature	Status	Description
 
 Welcome to the **Enterprise-Grade** architecture for CodeGuardian AI. This project uses a systematic monorepo structure with dedicated workspaces for Frontend and Backend.
 
-## 📂 Project Structure
+## 📂 Project Structure !!
 ```bash
 CODEGUARDIA-PROJECT/
 ├── frontend/             # Next.js (Port 3000)
